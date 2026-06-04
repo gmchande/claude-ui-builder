@@ -47,7 +47,7 @@ parser = OptionParser.new do |opts|
   opts.on("--gh-prd NUMBER_OR_URL", "Fetch PRD text from a GitHub issue with gh") { |value| options[:gh_prd] = value }
   opts.on("--gh-issue NUMBER_OR_URL", "Fetch issue text from a GitHub issue with gh") { |value| options[:gh_issue] = value }
   opts.on("--intent TEXT", "Short plain-English task intent") { |value| options[:intent] = value }
-  opts.on("--zellij-session NAME", "Create/use this visible Zellij session name") { |value| options[:zellij_session] = value }
+  opts.on("--zellij-session NAME", "Create this one-off visible Zellij session name") { |value| options[:zellij_session] = value }
   opts.on("--model MODEL", "Claude model (default: #{CLAUDE_DEFAULT_MODEL})") { |value| options[:model] = value }
   opts.on("--effort LEVEL", "Claude effort (default: #{CLAUDE_DEFAULT_EFFORT})") { |value| options[:effort] = value }
   opts.on("--chrome", "Enable Claude Code Chrome/browser integration") { options[:chrome] = true }
@@ -429,6 +429,13 @@ def zellij(*args, allow_failure: false)
   [stdout, stderr, status]
 end
 
+def zellij_session_exists?(session)
+  stdout, _stderr, status = zellij("list-sessions", "--short", allow_failure: true)
+  return false unless status.success?
+
+  stdout.lines.map(&:strip).include?(session)
+end
+
 def zellij_dump_screen(session, pane_id, full: false)
   # Readiness checks must ignore scrollback; old bypass warnings can remain in `--full` output.
   args = [
@@ -504,6 +511,12 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
   end
 
   session = zellij_session_name(repo_root, options)
+  if zellij_session_exists?(session)
+    warn "Zellij session already exists: #{session}"
+    warn "claude-ui-builder sessions are one-off; choose a new --zellij-session name or close the old session first."
+    exit 1
+  end
+
   prompt_text = payload
   prompt_path = write_prompt_bundle(prompt_text, repo_root, options)
   system_prompt_path = write_system_prompt(system_prompt, prompt_path)
