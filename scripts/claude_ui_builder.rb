@@ -458,6 +458,18 @@ def zellij_dump_screen(session, pane_id, full: false)
   ""
 end
 
+def close_other_terminal_panes(session, pane_id)
+  stdout, _stderr, status = zellij("--session", session, "action", "list-panes", allow_failure: true)
+  return unless status.success?
+
+  stdout.each_line do |line|
+    other_pane_id = line[/\A(terminal_\d+)\s+terminal\b/, 1]
+    next if other_pane_id.nil? || other_pane_id == pane_id
+
+    zellij("--session", session, "action", "close-pane", "--pane-id", other_pane_id, allow_failure: true)
+  end
+end
+
 def bypass_warning_screen?(screen)
   CLAUDE_BYPASS_WARNING_MARKERS.all? { |marker| screen.include?(marker) }
 end
@@ -495,7 +507,7 @@ end
 def zellij_write_text(session, pane_id, text)
   text.each_char.each_slice(8_000) do |chars|
     chunk = chars.join
-    zellij("--session", session, "action", "write-chars", "--pane-id", pane_id, chunk)
+    zellij("--session", session, "action", "write-chars", "--pane-id", pane_id, "--", chunk)
   end
 end
 
@@ -556,6 +568,7 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     exit 1
   end
 
+  close_other_terminal_panes(session, pane_id)
   exit 1 unless wait_for_zellij_claude_prompt(session, pane_id)
 
   zellij("--session", session, "action", "focus-pane-id", pane_id)
