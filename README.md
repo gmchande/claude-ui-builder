@@ -1,6 +1,6 @@
 # claude-ui-builder
 
-A Codex skill for delegating frontend UI/DX implementation or skeptical UI evaluation to Claude Code while keeping Codex responsible for planning, integration, and technical review.
+A Codex skill for delegating substantial frontend UI/DX implementation or skeptical UI evaluation to Claude Code while keeping Codex responsible for planning, integration, and technical review. For tiny copy, CSS, or component tweaks, Codex should usually make the change directly.
 
 The workflow is deliberately singular: the helper always launches Claude in a new, one-off visible Zellij session with `--permission-mode bypassPermissions`. There is no hidden batch runner, prompt-copy runner, parsed handoff runner, approval-gated runner, or automatic fallback transport.
 
@@ -23,7 +23,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Git
 - Claude Code CLI on `PATH`
 - Zellij 0.44+ on `PATH`
-- Ghostty.app installed in `/Applications`
+- Ghostty.app installed and registered with macOS
 - Optional: GitHub CLI on `PATH` for `--gh-prd` and `--gh-issue`
 
 For browser-based UI verification, Claude Code Chrome integration must be installed with a visible Chrome window and connected extension. Headless/remote environments may not support `--chrome`; the prompt requires Claude to say browser evidence was not captured rather than inventing screenshots.
