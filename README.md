@@ -79,7 +79,7 @@ CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder
 
 ## Runtime Behavior
 
-The helper creates or reuses the named Zellij session, starts a new `Claude UI Builder` pane in the repo root, waits briefly for the Claude prompt, pastes the assembled task, presses Enter, and prints commands like:
+The helper creates or reuses the named Zellij session, starts a new `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits briefly for the Claude prompt, pastes the assembled task, presses Enter, and prints commands like:
 
 ```sh
 zellij attach feature-ui

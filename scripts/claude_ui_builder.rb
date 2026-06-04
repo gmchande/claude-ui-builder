@@ -444,12 +444,38 @@ def zellij_dump_screen(session, pane_id)
   ""
 end
 
+def bypass_warning_screen?(screen)
+  screen.include?("Bypass") && screen.include?("Permissions") && screen.include?("Yes, I accept")
+end
+
+def claude_ready_screen?(screen)
+  screen.include?("Claude Code") && screen.include?("❯") && !bypass_warning_screen?(screen)
+end
+
+def accept_zellij_bypass_warning(session, pane_id, timeout_seconds: 15)
+  deadline = Time.now + timeout_seconds
+
+  until Time.now > deadline
+    screen = zellij_dump_screen(session, pane_id)
+    return false if claude_ready_screen?(screen)
+
+    if bypass_warning_screen?(screen)
+      zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "2", "Enter")
+      return true
+    end
+
+    sleep 0.5
+  end
+
+  false
+end
+
 def wait_for_zellij_claude_prompt(session, pane_id, timeout_seconds: 15)
   deadline = Time.now + timeout_seconds
 
   until Time.now > deadline
     screen = zellij_dump_screen(session, pane_id)
-    return true if screen.include?("Claude Code") && screen.include?("❯")
+    return true if claude_ready_screen?(screen)
 
     sleep 0.5
   end
@@ -516,6 +542,7 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     exit 1
   end
 
+  accept_zellij_bypass_warning(session, pane_id)
   wait_for_zellij_claude_prompt(session, pane_id)
   zellij("--session", session, "action", "focus-pane-id", pane_id)
   zellij_paste_text(session, pane_id, prompt_text)
