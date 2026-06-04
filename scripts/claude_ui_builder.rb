@@ -520,6 +520,8 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     "--session",
     session,
     "run",
+    "--in-place",
+    "--close-replaced-pane",
     "--cwd",
     repo_root,
     "--name",
