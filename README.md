@@ -75,22 +75,23 @@ Run a separate evaluator after implementation:
 Use a different effort or model:
 
 ```sh
-CLAUDE_UI_EFFORT=max /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=high /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 ```
 
 ## Runtime Behavior
 
-The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, opens a Ghostty tab attached to the session, writes the assembled task, presses Enter, and prints commands like:
+The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, opens a Ghostty tab attached to the session, bracket-pastes the assembled task, presses Enter, and prints commands like:
 
 ```sh
 zellij attach feature-ui
-zellij --session feature-ui action dump-screen --pane-id terminal_0 --full
+zellij --session feature-ui action dump-screen --pane-id terminal_0
+zellij --session feature-ui action dump-screen --pane-id terminal_0 --full --path /tmp/claude-ui-builder-feature-ui.screen.txt
 zellij --session feature-ui action send-keys --pane-id terminal_0 Esc
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should inspect the actual diff and terminal output after Claude stops or when the user asks.
+Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. Inspect only on explicit user request, apparent completion, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
 
 The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 
