@@ -79,7 +79,7 @@ CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder
 
 ## Runtime Behavior
 
-The helper creates or reuses the named Zellij session, starts a new `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits briefly for the Claude prompt, pastes the assembled task, presses Enter, and prints commands like:
+The helper creates or reuses the named Zellij session, starts a new `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, pastes the assembled task, presses Enter, and prints commands like:
 
 ```sh
 zellij attach feature-ui
@@ -91,6 +91,8 @@ zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should inspect the actual diff and terminal output after Claude stops or when the user asks.
 
 The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable.
+
+If the Claude prompt never becomes visibly ready, the helper exits with an inspect command instead of pasting the task into an unknown screen.
 
 ## Matt Pocock Skill Fit
 

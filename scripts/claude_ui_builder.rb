@@ -13,6 +13,8 @@ MAX_DOC_BUNDLE_BYTES = 500_000
 CLAUDE_DEFAULT_MODEL = ENV.fetch("CLAUDE_UI_MODEL", "claude-opus-4-8")
 CLAUDE_DEFAULT_EFFORT = ENV.fetch("CLAUDE_UI_EFFORT", "xhigh")
 CLAUDE_PERMISSION_MODE = "bypassPermissions"
+CLAUDE_BYPASS_WARNING_MARKERS = ["Bypass", "Permissions", "Yes", "accept"].freeze
+CLAUDE_READY_MARKERS = ["Claude Code", "❯"].freeze
 BUILDER_TOOLS = ENV.fetch(
   "CLAUDE_UI_BUILDER_TOOLS",
   "Read,Grep,Glob,Bash,Edit,MultiEdit,Write,WebSearch,WebFetch"
@@ -427,15 +429,20 @@ def zellij(*args, allow_failure: false)
   [stdout, stderr, status]
 end
 
-def zellij_dump_screen(session, pane_id)
-  stdout, _stderr, status = zellij(
+def zellij_dump_screen(session, pane_id, full: false)
+  # Readiness checks must ignore scrollback; old bypass warnings can remain in `--full` output.
+  args = [
     "--session",
     session,
     "action",
     "dump-screen",
     "--pane-id",
-    pane_id,
-    "--full",
+    pane_id
+  ]
+  args << "--full" if full
+
+  stdout, _stderr, status = zellij(
+    *args,
     allow_failure: true
   )
 
@@ -445,42 +452,36 @@ def zellij_dump_screen(session, pane_id)
 end
 
 def bypass_warning_screen?(screen)
-  screen.include?("Bypass") && screen.include?("Permissions") && screen.include?("Yes, I accept")
+  CLAUDE_BYPASS_WARNING_MARKERS.all? { |marker| screen.include?(marker) }
 end
 
 def claude_ready_screen?(screen)
-  screen.include?("Claude Code") && screen.include?("❯") && !bypass_warning_screen?(screen)
+  CLAUDE_READY_MARKERS.all? { |marker| screen.include?(marker) } && !bypass_warning_screen?(screen)
 end
 
-def accept_zellij_bypass_warning(session, pane_id, timeout_seconds: 15)
+def accept_zellij_bypass_warning(session, pane_id)
+  warn "Claude bypass-permissions startup screen detected; selecting Yes, I accept."
+  zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "2", "Enter")
+end
+
+def wait_for_zellij_claude_prompt(session, pane_id, timeout_seconds: 30)
   deadline = Time.now + timeout_seconds
 
   until Time.now > deadline
     screen = zellij_dump_screen(session, pane_id)
-    return false if claude_ready_screen?(screen)
-
     if bypass_warning_screen?(screen)
-      zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "2", "Enter")
-      return true
+      accept_zellij_bypass_warning(session, pane_id)
+      sleep 1
+      next
     end
 
-    sleep 0.5
-  end
-
-  false
-end
-
-def wait_for_zellij_claude_prompt(session, pane_id, timeout_seconds: 15)
-  deadline = Time.now + timeout_seconds
-
-  until Time.now > deadline
-    screen = zellij_dump_screen(session, pane_id)
     return true if claude_ready_screen?(screen)
 
     sleep 0.5
   end
 
-  warn "Claude pane did not show a ready prompt within #{timeout_seconds}s; pasting anyway."
+  warn "Claude pane did not show a ready prompt within #{timeout_seconds}s; not sending the task."
+  warn "Inspect it with: zellij --session #{session.shellescape} action dump-screen --pane-id #{pane_id.shellescape} --full"
   false
 end
 
@@ -542,8 +543,8 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     exit 1
   end
 
-  accept_zellij_bypass_warning(session, pane_id)
-  wait_for_zellij_claude_prompt(session, pane_id)
+  exit 1 unless wait_for_zellij_claude_prompt(session, pane_id)
+
   zellij("--session", session, "action", "focus-pane-id", pane_id)
   zellij_paste_text(session, pane_id, prompt_text)
   zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "Enter")
