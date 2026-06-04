@@ -12,6 +12,7 @@ MAX_TEXT_BYTES = 200_000
 MAX_DOC_BUNDLE_BYTES = 500_000
 CLAUDE_DEFAULT_MODEL = ENV.fetch("CLAUDE_UI_MODEL", "claude-opus-4-8")
 CLAUDE_DEFAULT_EFFORT = ENV.fetch("CLAUDE_UI_EFFORT", "xhigh")
+CLAUDE_PERMISSION_MODE = "bypassPermissions"
 BUILDER_TOOLS = ENV.fetch(
   "CLAUDE_UI_BUILDER_TOOLS",
   "Read,Grep,Glob,Bash,Edit,MultiEdit,Write,WebSearch,WebFetch"
@@ -31,7 +32,6 @@ options = {
   issue: nil,
   mode: "builder",
   model: CLAUDE_DEFAULT_MODEL,
-  permission_mode: nil,
   prd: nil,
   zellij_session: nil
 }
@@ -48,7 +48,6 @@ parser = OptionParser.new do |opts|
   opts.on("--zellij-session NAME", "Create/use this visible Zellij session name") { |value| options[:zellij_session] = value }
   opts.on("--model MODEL", "Claude model (default: #{CLAUDE_DEFAULT_MODEL})") { |value| options[:model] = value }
   opts.on("--effort LEVEL", "Claude effort (default: #{CLAUDE_DEFAULT_EFFORT})") { |value| options[:effort] = value }
-  opts.on("--permission-mode MODE", "Optional Claude Code permission mode") { |value| options[:permission_mode] = value }
   opts.on("--chrome", "Enable Claude Code Chrome/browser integration") { options[:chrome] = true }
   opts.on("--dry-run", "Print the prompt bundle instead of calling Claude") { options[:dry_run] = true }
   opts.on("-h", "--help", "Show this help") do
@@ -404,6 +403,8 @@ def claude_interactive_shell_cmd(system_prompt_path, options, tools)
     options[:model],
     "--effort",
     options[:effort],
+    "--permission-mode",
+    CLAUDE_PERMISSION_MODE,
     "--tools",
     tools,
     "--allowedTools",
@@ -411,7 +412,6 @@ def claude_interactive_shell_cmd(system_prompt_path, options, tools)
   ]
 
   cmd << "--chrome" if options[:chrome]
-  cmd.concat(["--permission-mode", options[:permission_mode]]) if options[:permission_mode]
   "#{cmd.shelljoin} --append-system-prompt \"$(cat #{system_prompt_path.shellescape})\""
 end
 
@@ -587,6 +587,7 @@ PROMPT
 if options[:dry_run]
   puts "Claude model: #{options[:model]}"
   puts "Claude effort: #{options[:effort]}"
+  puts "Permission mode: #{CLAUDE_PERMISSION_MODE}"
   puts "Mode: #{options[:mode]}"
   puts "Runner: visible Zellij session"
   puts "Tools: #{tools}"

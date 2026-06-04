@@ -2,7 +2,7 @@
 
 A Codex skill for delegating frontend UI/DX implementation or skeptical UI evaluation to Claude Code while keeping Codex responsible for planning, integration, and technical review.
 
-The workflow is deliberately singular: the helper always launches Claude in a visible Zellij session. There is no hidden batch runner, prompt-copy runner, parsed handoff runner, or automatic fallback transport.
+The workflow is deliberately singular: the helper always launches Claude in a visible Zellij session with `--permission-mode bypassPermissions`. There is no hidden batch runner, prompt-copy runner, parsed handoff runner, approval-gated runner, or automatic fallback transport.
 
 ## What it does
 
@@ -11,7 +11,7 @@ The workflow is deliberately singular: the helper always launches Claude in a vi
 - Bundles local skill configuration from `docs/agents/`.
 - Bundles `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs when present.
 - Includes git status, current tracked diff, and untracked text files.
-- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8` and `xhigh` effort by default.
+- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, `xhigh` effort, and `bypassPermissions` by default.
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
@@ -88,7 +88,7 @@ zellij --session feature-ui action send-keys --pane-id terminal_0 Esc
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly. Codex should inspect the actual diff and terminal output after Claude stops or when the user asks.
+Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should inspect the actual diff and terminal output after Claude stops or when the user asks.
 
 The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable.
 
@@ -103,6 +103,6 @@ The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-
 
 ## Safety
 
-Builder mode grants edit tools and `Bash`. That is real local access, not a sandbox. Run it only in trusted repos, preferably on a branch or isolated worktree. The prompt tells Claude not to revert unrelated changes, but Codex should still review the final diff before merging.
+Builder mode grants edit tools and `Bash` without per-command permission prompts. That is real local access, not a sandbox. Run it only in trusted repos, preferably on a branch or isolated worktree. The prompt tells Claude not to revert unrelated changes, but Codex should still review the final diff before merging.
 
 Evaluator mode removes edit tools, but still grants `Bash` so Claude can run tests, inspect the app, and use browser tooling.
