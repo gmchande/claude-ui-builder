@@ -6,6 +6,7 @@ require "json"
 require "open3"
 require "optparse"
 require "shellwords"
+require "tmpdir"
 
 MAX_TEXT_BYTES = 200_000
 MAX_DOC_BUNDLE_BYTES = 500_000
@@ -34,8 +35,12 @@ options = {
   model: CLAUDE_DEFAULT_MODEL,
   output: nil,
   permission_mode: nil,
+  prompt_file: nil,
   prd: nil,
-  timeout: 1200
+  runner: "batch",
+  timeout: 1200,
+  zellij_pane_id: nil,
+  zellij_session: nil
 }
 
 parser = OptionParser.new do |opts|
@@ -48,6 +53,11 @@ parser = OptionParser.new do |opts|
   opts.on("--gh-issue NUMBER_OR_URL", "Fetch issue text from a GitHub issue with gh") { |value| options[:gh_issue] = value }
   opts.on("--intent TEXT", "Short plain-English task intent") { |value| options[:intent] = value }
   opts.on("--output PATH", "Write Claude's Markdown handoff to PATH as well as stdout") { |value| options[:output] = value }
+  opts.on("--runner MODE", "batch, prompt, or zellij (default: batch)") { |value| options[:runner] = value }
+  opts.on("--prompt-file PATH", "Write the assembled prompt bundle to PATH for prompt/zellij runners") { |value| options[:prompt_file] = value }
+  opts.on("--copy-prompt", "Copy the assembled prompt bundle to the macOS clipboard") { options[:copy_prompt] = true }
+  opts.on("--zellij-session NAME", "Create/use this Zellij session name for --runner zellij") { |value| options[:zellij_session] = value }
+  opts.on("--zellij-pane-id ID", "Send prompt to an existing Zellij pane id, e.g. terminal_3") { |value| options[:zellij_pane_id] = value }
   opts.on("--model MODEL", "Claude model (default: #{CLAUDE_DEFAULT_MODEL})") { |value| options[:model] = value }
   opts.on("--effort LEVEL", "Claude effort (default: #{CLAUDE_DEFAULT_EFFORT})") { |value| options[:effort] = value }
   opts.on("--timeout SECONDS", Integer, "Stop Claude after SECONDS (default: 1200)") { |value| options[:timeout] = value }
@@ -66,6 +76,11 @@ parser.parse!(ARGV)
 
 unless %w[builder evaluator].include?(options[:mode])
   warn "Unsupported mode: #{options[:mode]}. Use builder or evaluator."
+  exit 1
+end
+
+unless %w[batch prompt zellij].include?(options[:runner])
+  warn "Unsupported runner: #{options[:runner]}. Use batch, prompt, or zellij."
   exit 1
 end
 
@@ -366,11 +381,9 @@ def evaluator_system_prompt
   PROMPT
 end
 
-def run_claude(system_prompt, payload, options, tools)
+def claude_base_cmd(system_prompt, options, tools, print_mode: false)
   cmd = [
     "claude",
-    "-p",
-    "--no-session-persistence",
     "--model",
     options[:model],
     "--effort",
@@ -380,13 +393,27 @@ def run_claude(system_prompt, payload, options, tools)
     "--allowedTools",
     tools,
     "--append-system-prompt",
-    system_prompt,
-    "--output-format",
-    "json"
+    system_prompt
   ]
+
+  if print_mode
+    cmd.insert(1, "-p")
+    cmd.insert(2, "--no-session-persistence")
+  end
 
   cmd << "--chrome" if options[:chrome]
   cmd.concat(["--permission-mode", options[:permission_mode]]) if options[:permission_mode]
+
+  cmd
+end
+
+def run_claude(system_prompt, payload, options, tools)
+  cmd = claude_base_cmd(system_prompt, options, tools, print_mode: true)
+  cmd.concat([
+    "--output-format",
+    "json"
+  ])
+
   cmd.concat(["--max-turns", options[:max_turns].to_s]) if options[:max_turns]
   cmd.concat(["--max-budget-usd", options[:max_budget_usd].to_s]) if options[:max_budget_usd]
 
@@ -437,6 +464,238 @@ rescue JSON::ParserError
   [stdout, nil]
 end
 
+def slug(value)
+  value.to_s.downcase.gsub(/[^a-z0-9]+/, "-").gsub(/\A-|-+\z/, "")[0, 60]
+end
+
+def default_prompt_file(repo_root, options)
+  issue_slug = options[:issue] ? slug(File.basename(options[:issue], ".md")) : "prompt"
+  repo_slug = slug(File.basename(repo_root))
+  stamp = Time.now.utc.strftime("%Y%m%d-%H%M%S")
+  File.join(Dir.tmpdir, "claude-ui-builder", "#{stamp}-#{repo_slug}-#{options[:mode]}-#{issue_slug}.md")
+end
+
+def default_system_prompt_file(prompt_path)
+  return prompt_path.sub(/\.md\z/, "-system.md") if prompt_path.end_with?(".md")
+
+  "#{prompt_path}-system.md"
+end
+
+def write_prompt_bundle(payload, repo_root, options)
+  path = options[:prompt_file] || default_prompt_file(repo_root, options)
+  FileUtils.mkdir_p(File.dirname(path)) unless File.dirname(path) == "."
+  File.write(path, payload)
+  path
+end
+
+def write_system_prompt(system_prompt, prompt_path)
+  path = default_system_prompt_file(prompt_path)
+  File.write(path, system_prompt)
+  path
+end
+
+def copy_to_clipboard(text)
+  return false unless command_available?("pbcopy")
+
+  Open3.popen3("pbcopy") do |stdin, _stdout, _stderr, wait_thread|
+    stdin.write(text)
+    stdin.close
+    return wait_thread.value.success?
+  end
+end
+
+def print_visible_runner_instructions(system_prompt, payload, repo_root, options, tools)
+  prompt_path = write_prompt_bundle(payload, repo_root, options)
+  system_prompt_path = write_system_prompt(system_prompt, prompt_path)
+  copied = options[:copy_prompt] ? copy_to_clipboard(payload) : false
+  cmd = claude_interactive_shell_cmd(system_prompt_path, options, tools)
+
+  puts "Prompt bundle: #{prompt_path}"
+  puts "System prompt: #{system_prompt_path}"
+  puts "Claude command:"
+  puts cmd
+  puts
+  puts "Open a visible terminal in this repo, run the command above, then paste the prompt bundle."
+  puts "Paste helper:"
+  puts "pbcopy < #{prompt_path.shellescape}"
+  puts "Clipboard: #{copied ? "prompt copied" : "not copied"}" if options[:copy_prompt]
+end
+
+def zellij_session_name(repo_root, options)
+  return options[:zellij_session] if options[:zellij_session]
+
+  "cui-#{Time.now.utc.strftime("%H%M%S")}"
+end
+
+def claude_interactive_shell_cmd(system_prompt_path, options, tools)
+  cmd = [
+    "claude",
+    "--model",
+    options[:model],
+    "--effort",
+    options[:effort],
+    "--tools",
+    tools,
+    "--allowedTools",
+    tools
+  ]
+
+  cmd << "--chrome" if options[:chrome]
+  cmd.concat(["--permission-mode", options[:permission_mode]]) if options[:permission_mode]
+  "#{cmd.shelljoin} --append-system-prompt \"$(cat #{system_prompt_path.shellescape})\""
+end
+
+def visible_prompt_text(system_prompt, payload, include_system_prompt:)
+  return payload unless include_system_prompt
+
+  <<~PROMPT
+    You are being handed a delegated Claude UI Builder task from Codex. Use these role instructions for this run:
+
+    #{system_prompt}
+
+    #{payload}
+  PROMPT
+end
+
+def zellij(*args, allow_failure: false)
+  stdout, stderr, status = run("zellij", *args, allow_failure: true)
+  output = "#{stdout}\n#{stderr}"
+
+  if !status.success? && output.match?(/(socket|path|file name).*(too long|name too long)/im)
+    ENV["ZELLIJ_SOCKET_DIR"] ||= "/tmp/zellij"
+    FileUtils.mkdir_p(ENV.fetch("ZELLIJ_SOCKET_DIR"))
+    @zellij_socket_fallback_used = true
+    stdout, stderr, status = run("zellij", *args, allow_failure: true)
+  end
+
+  if !status.success? && !allow_failure
+    warn "Command failed: #{(["zellij"] + args).shelljoin}"
+    warn stderr unless stderr.empty?
+    exit status.exitstatus || 1
+  end
+
+  [stdout, stderr, status]
+end
+
+def zellij_dump_screen(session, pane_id)
+  stdout, _stderr, status = zellij(
+    "--session",
+    session,
+    "action",
+    "dump-screen",
+    "--pane-id",
+    pane_id,
+    "--full",
+    allow_failure: true
+  )
+
+  return stdout if status.success?
+
+  ""
+end
+
+def wait_for_zellij_claude_prompt(session, pane_id, timeout_seconds: 15)
+  deadline = Time.now + timeout_seconds
+
+  until Time.now > deadline
+    screen = zellij_dump_screen(session, pane_id)
+    return true if screen.include?("Claude Code") && screen.include?("❯")
+
+    sleep 0.5
+  end
+
+  warn "Claude pane did not show a ready prompt within #{timeout_seconds}s; pasting anyway."
+  false
+end
+
+def zellij_cli_prefix
+  return "" unless @zellij_socket_fallback_used && ENV["ZELLIJ_SOCKET_DIR"]
+
+  "ZELLIJ_SOCKET_DIR=#{ENV.fetch("ZELLIJ_SOCKET_DIR").shellescape} "
+end
+
+def zellij_paste_text(session, pane_id, text)
+  text.each_char.each_slice(8_000) do |chars|
+    chunk = chars.join
+    zellij("--session", session, "action", "paste", "--pane-id", pane_id, chunk)
+  end
+end
+
+def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
+  unless command_available?("zellij")
+    warn "zellij is not available on PATH. Install it with `brew install zellij`, use --runner prompt, or start Claude manually in a visible terminal."
+    exit 1
+  end
+
+  session = zellij_session_name(repo_root, options)
+  existing_pane_id = options[:zellij_pane_id]
+  prompt_text = visible_prompt_text(system_prompt, payload, include_system_prompt: !!existing_pane_id)
+  prompt_path = write_prompt_bundle(prompt_text, repo_root, options)
+  system_prompt_path = write_system_prompt(system_prompt, prompt_path)
+  copied = options[:copy_prompt] ? copy_to_clipboard(prompt_text) : nil
+
+  if existing_pane_id
+    pane_id = existing_pane_id
+  else
+    _stdout, stderr, status = zellij("attach", "--create-background", session, allow_failure: true)
+    unless status.success?
+      warn "Failed to create or attach Zellij background session: #{session}"
+      warn stderr unless stderr.empty?
+      exit status.exitstatus || 1
+    end
+
+    cmd = claude_interactive_shell_cmd(system_prompt_path, options, tools)
+    stdout, stderr, status = zellij(
+      "--session",
+      session,
+      "run",
+      "--cwd",
+      repo_root,
+      "--name",
+      "Claude UI Builder",
+      "--",
+      "sh",
+      "-lc",
+      cmd,
+      allow_failure: true
+    )
+
+    unless status.success?
+      warn "Failed to create Zellij Claude pane in session: #{session}"
+      warn stderr unless stderr.empty?
+      exit status.exitstatus || 1
+    end
+
+    pane_id = stdout.strip
+    if pane_id.empty?
+      warn "Zellij did not return a pane id; cannot safely paste the prompt."
+      exit 1
+    end
+
+    wait_for_zellij_claude_prompt(session, pane_id)
+  end
+
+  zellij("--session", session, "action", "focus-pane-id", pane_id)
+  zellij_paste_text(session, pane_id, prompt_text)
+  zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "Enter")
+
+  puts "Claude prompt sent to Zellij session: #{session}"
+  puts "Zellij pane: #{pane_id}"
+  puts "Prompt bundle: #{prompt_path}"
+  puts "System prompt: #{system_prompt_path}"
+  puts "Clipboard: #{copied ? "prompt copied" : "not copied"}" unless copied.nil?
+  puts
+  puts "Watch:"
+  puts "#{zellij_cli_prefix}zellij attach #{session.shellescape}"
+  puts
+  puts "Inspect from Codex/shell:"
+  puts "#{zellij_cli_prefix}zellij --session #{session.shellescape} action dump-screen --pane-id #{pane_id.shellescape} --full"
+  puts
+  puts "Interrupt:"
+  puts "#{zellij_cli_prefix}zellij --session #{session.shellescape} action send-keys --pane-id #{pane_id.shellescape} Esc"
+  puts "#{zellij_cli_prefix}zellij --session #{session.shellescape} action send-keys --pane-id #{pane_id.shellescape} \"Ctrl c\""
+end
+
 unless inside_git_repo?
   warn "Not inside a git repository. Run this from the project repo."
   exit 1
@@ -447,6 +706,7 @@ repo_root = git("rev-parse", "--show-toplevel").strip
 options[:prd] = File.expand_path(options[:prd]) if options[:prd]
 options[:issue] = File.expand_path(options[:issue]) if options[:issue]
 options[:output] = File.expand_path(options[:output]) if options[:output]
+options[:prompt_file] = File.expand_path(options[:prompt_file]) if options[:prompt_file]
 
 Dir.chdir(repo_root)
 
@@ -489,9 +749,10 @@ if options[:dry_run]
   puts "Claude model: #{options[:model]}"
   puts "Claude effort: #{options[:effort]}"
   puts "Mode: #{options[:mode]}"
+  puts "Runner: #{options[:runner]}"
   puts "Tools: #{tools}"
   puts "Chrome: #{options[:chrome] ? "enabled" : "disabled"}"
-  puts "Output format: json"
+  puts "Output format: #{options[:runner] == "batch" ? "json" : "interactive terminal"}"
   puts
   puts "## Appended system prompt"
   puts system_prompt
@@ -501,9 +762,23 @@ if options[:dry_run]
   exit 0
 end
 
+if options[:runner] == "prompt"
+  print_visible_runner_instructions(system_prompt, payload, repo_root, options, tools)
+  exit 0
+end
+
 unless command_available?("claude")
   warn "Claude Code CLI not found on PATH."
   exit 1
+end
+
+if options[:runner] == "zellij"
+  if options[:max_turns] || options[:max_budget_usd]
+    warn "--max-turns and --max-budget-usd only apply to the default batch print-mode runner; ignoring them for zellij."
+  end
+
+  run_zellij_runner(system_prompt, payload, repo_root, options, tools)
+  exit 0
 end
 
 stdout, stderr, status, timed_out, cmd = run_claude(system_prompt, payload, options, tools)
