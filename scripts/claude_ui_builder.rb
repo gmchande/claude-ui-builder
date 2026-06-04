@@ -492,10 +492,10 @@ def wait_for_zellij_claude_prompt(session, pane_id, timeout_seconds: 30)
   false
 end
 
-def zellij_paste_text(session, pane_id, text)
+def zellij_write_text(session, pane_id, text)
   text.each_char.each_slice(8_000) do |chars|
     chunk = chars.join
-    zellij("--session", session, "action", "paste", "--pane-id", pane_id, chunk)
+    zellij("--session", session, "action", "write-chars", "--pane-id", pane_id, chunk)
   end
 end
 
@@ -533,8 +533,6 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     "--session",
     session,
     "run",
-    "--in-place",
-    "--close-replaced-pane",
     "--cwd",
     repo_root,
     "--name",
@@ -561,7 +559,8 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
   exit 1 unless wait_for_zellij_claude_prompt(session, pane_id)
 
   zellij("--session", session, "action", "focus-pane-id", pane_id)
-  zellij_paste_text(session, pane_id, prompt_text)
+  zellij_write_text(session, pane_id, prompt_text)
+  sleep 2
   zellij("--session", session, "action", "send-keys", "--pane-id", pane_id, "Enter")
 
   puts "Claude prompt sent to Zellij session: #{session}"

@@ -79,4 +79,4 @@ scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issu
 scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"
 ```
 
-The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` for inspection, then replaces the new Zellij session's bootstrap shell pane with the Claude pane and sends the task there. It does not parse a final handoff; Codex should verify the actual diff and terminal output.
+The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` for inspection, then starts Claude in a pane inside the one-off Zellij session and sends the task there. It does not parse a final handoff; Codex should verify the actual diff and terminal output.
