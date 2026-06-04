@@ -24,6 +24,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Claude Code CLI on `PATH`
 - Zellij 0.44+ on `PATH`
 - Ghostty.app installed and registered with macOS
+- `ZELLIJ_SOCKET_DIR` set in shell startup to a short stable path such as `/tmp/zellij`
 - Optional: GitHub CLI on `PATH` for `--gh-prd` and `--gh-issue`
 
 For browser-based UI verification, Claude Code Chrome integration must be installed with a visible Chrome window and connected extension. Headless/remote environments may not support `--chrome`; the prompt requires Claude to say browser evidence was not captured rather than inventing screenshots.
@@ -80,7 +81,7 @@ CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder
 
 ## Runtime Behavior
 
-The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, writes the assembled task, presses Enter, opens a Ghostty tab attached to the session, and prints commands like:
+The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, opens a Ghostty tab attached to the session, writes the assembled task, presses Enter, and prints commands like:
 
 ```sh
 zellij attach feature-ui
@@ -91,9 +92,9 @@ zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 
 Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should inspect the actual diff and terminal output after Claude stops or when the user asks.
 
-The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable.
+The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 
-If the requested Zellij session name already exists, the helper exits. Session names are one-off handles for a single Claude run; use a fresh name for each run or close the old session first.
+If the requested Zellij session name already exists, the helper exits. Session names are one-off handles for a single Claude run; use a fresh name for each run, or remove the old handle with `zellij delete-session <name>` or `zellij kill-session <name>` if it is still active.
 
 If the Claude prompt never becomes visibly ready, the helper exits with an inspect command instead of pasting the task into an unknown screen.
 
