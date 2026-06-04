@@ -7,9 +7,9 @@ description: Delegate frontend UI/DX implementation or UI review to Claude Code 
 
 Use this skill when Codex should act as the technical lead and ask Claude Code to implement or evaluate a frontend/UI slice. It is designed to fit after the Matt Pocock skill flow: `/grill-with-docs` clarifies language and decisions, `/to-prd` creates the PRD, `/to-issues` creates vertical-slice issues, then this skill gives Claude one constrained UI/DX slice to build or review.
 
-The helper always launches Claude Code in a new, one-off visible Zellij session with `--permission-mode bypassPermissions`. If the requested session name already exists, the helper exits instead of reusing it. If Claude shows its bypass-permissions startup responsibility screen, the helper selects `Yes, I accept` before sending the task. If the Claude prompt never becomes visibly ready, the helper exits instead of pasting into an unknown screen. There is no hidden batch mode, prompt-copy mode, approval-gated mode, or fallback transport. This is intentional: the user can attach, watch stdout, interrupt, and correct Claude directly while Codex remains responsible for planning, integration, and final review.
+The helper always launches Claude Code in a new, one-off visible Zellij session with `--permission-mode bypassPermissions` and opens a Ghostty tab attached to that session after sending the task. If the requested session name already exists, the helper exits instead of reusing it. If Claude shows its bypass-permissions startup responsibility screen, the helper selects `Yes, I accept` before sending the task. If the Claude prompt never becomes visibly ready, the helper exits instead of pasting into an unknown screen. There is no hidden batch mode, prompt-copy mode, approval-gated mode, or fallback transport. This is intentional: the user can attach, watch stdout, interrupt, and correct Claude directly while Codex remains responsible for planning, integration, and final review.
 
-Requirements: Ruby, Git, Claude Code CLI on `PATH`, and Zellij 0.44+ on `PATH`. Builder mode grants edit tools and shell access without per-command permission prompts; use it only in trusted repos, preferably on a branch or isolated worktree. Evaluator mode is read-only-ish, but `Bash` is still shell access.
+Requirements: Ruby, Git, Claude Code CLI on `PATH`, Zellij 0.44+ on `PATH`, and Ghostty.app in `/Applications`. Builder mode grants edit tools and shell access without per-command permission prompts; use it only in trusted repos, preferably on a branch or isolated worktree. Evaluator mode is read-only-ish, but `Bash` is still shell access.
 
 ## Quick Start
 
@@ -79,4 +79,4 @@ scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issu
 scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"
 ```
 
-The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` for inspection, then starts Claude in a pane inside the one-off Zellij session and sends the task there. It does not parse a final handoff; Codex should verify the actual diff and terminal output.
+The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` for inspection, starts Claude in a pane inside the one-off Zellij session, sends the task, and opens Ghostty attached to the session. It does not parse a final handoff; Codex should verify the actual diff and terminal output.

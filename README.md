@@ -15,7 +15,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
-- Prints the exact attach, inspect, and interrupt commands for the one-off Zellij session.
+- Opens a Ghostty tab attached to the one-off Zellij session and prints the exact attach, inspect, and interrupt commands.
 
 ## Requirements
 
@@ -23,6 +23,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Git
 - Claude Code CLI on `PATH`
 - Zellij 0.44+ on `PATH`
+- Ghostty.app installed in `/Applications`
 - Optional: GitHub CLI on `PATH` for `--gh-prd` and `--gh-issue`
 
 For browser-based UI verification, Claude Code Chrome integration must be installed with a visible Chrome window and connected extension. Headless/remote environments may not support `--chrome`; the prompt requires Claude to say browser evidence was not captured rather than inventing screenshots.
@@ -79,7 +80,7 @@ CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder
 
 ## Runtime Behavior
 
-The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, pastes the assembled task, presses Enter, and prints commands like:
+The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, writes the assembled task, presses Enter, opens a Ghostty tab attached to the session, and prints commands like:
 
 ```sh
 zellij attach feature-ui
