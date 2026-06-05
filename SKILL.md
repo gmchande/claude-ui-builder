@@ -62,7 +62,7 @@ Run a skeptical UI evaluator after the builder changes files:
 6. For subjective or high-stakes UI work, run evaluator mode as a separate pass.
 7. Use Codex for final technical integration, test review, and follow-up issue creation.
 
-Observation policy: after launching Claude visibly, Codex should inspect only on explicit user request, apparent completion, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps. Avoid repeated `dump-screen --full` polling; use full transcript dumps only as diagnostics, preferably written to a temp file.
+Observation policy: after launching Claude visibly, Codex should let the user be the live observer and should not continuously poll the pane. When Codex needs completion, poll the printed done marker cheaply and read the handoff file once it exists. Inspect the pane only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps. Avoid repeated `dump-screen --full` polling; use full transcript dumps only as diagnostics, preferably written to a temp file.
 
 ## Matt Pocock Skill Fit
 
@@ -81,4 +81,4 @@ scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issu
 scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"
 ```
 
-The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` for inspection, starts Claude in a pane inside the one-off Zellij session, opens Ghostty attached to the session, and bracket-pastes the task. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace. It does not parse a final handoff; Codex should verify the actual diff and terminal output after Claude finishes or at bounded checkpoints.
+The helper writes the assembled prompt bundle, system prompt, handoff path, and done marker under `/tmp/claude-ui-builder/...`, starts Claude in a pane inside the one-off Zellij session, opens Ghostty attached to the session, and bracket-pastes the task. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace. It does not parse a final handoff automatically; Codex should read the handoff file after the done marker appears and verify the actual diff before accepting it.

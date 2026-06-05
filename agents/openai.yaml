@@ -1,0 +1,7 @@
+interface:
+  display_name: "Claude UI Builder"
+  short_description: "Visible Claude/Zellij frontend builder and UI evaluator"
+  default_prompt: "Use $claude-ui-builder to launch a visible Claude UI builder or evaluator pass for the selected frontend slice."
+
+policy:
+  allow_implicit_invocation: true

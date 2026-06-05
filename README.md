@@ -11,7 +11,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Bundles local skill configuration from `docs/agents/`.
 - Bundles `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs when present.
 - Includes git status, current tracked diff, and untracked text files.
-- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, `xhigh` effort, and `bypassPermissions` by default.
+- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, high effort, and `bypassPermissions` by default.
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
@@ -91,9 +91,9 @@ zellij --session feature-ui action send-keys --pane-id terminal_0 Esc
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. Inspect only on explicit user request, apparent completion, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
+Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, poll the printed done marker cheaply and read the handoff file once it exists. Inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
 
-The helper writes the assembled prompt bundle and system prompt to `/tmp/claude-ui-builder/...` so the exact task remains inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
+The helper writes the assembled prompt bundle, system prompt, handoff file, and done marker under `/tmp/claude-ui-builder/...` so the exact task and final handoff remain inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 
 If the requested Zellij session name already exists, the helper exits. Session names are one-off handles for a single Claude run; use a fresh name for each run, or remove the old handle with `zellij delete-session <name>` or `zellij kill-session <name>` if it is still active.
 

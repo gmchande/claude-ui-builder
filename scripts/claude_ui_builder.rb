@@ -11,8 +11,9 @@ require_relative "claude_visible_session"
 
 MAX_TEXT_BYTES = 200_000
 MAX_DOC_BUNDLE_BYTES = 500_000
+MAX_UNTRACKED_BUNDLE_BYTES = 500_000
 CLAUDE_DEFAULT_MODEL = ENV.fetch("CLAUDE_UI_MODEL", "claude-opus-4-8")
-CLAUDE_DEFAULT_EFFORT = ENV.fetch("CLAUDE_UI_EFFORT", "xhigh")
+CLAUDE_DEFAULT_EFFORT = ENV.fetch("CLAUDE_UI_EFFORT", "high")
 CLAUDE_PERMISSION_MODE = "bypassPermissions"
 BUILDER_TOOLS = ENV.fetch(
   "CLAUDE_UI_BUILDER_TOOLS",
@@ -106,7 +107,7 @@ def empty_tree_ref
 end
 
 def likely_text_file?(path)
-  File.file?(path) && !File.binread(path, 4096).include?("\x00")
+  File.file?(path) && !File.binread(path, 4096).to_s.include?("\x00")
 rescue Errno::ENOENT, Errno::EACCES
   false
 end
@@ -252,7 +253,20 @@ def untracked_bundle
   paths = raw.split("\0").reject(&:empty?)
   return "" if paths.empty?
 
-  sections = paths.map { |path| untracked_file_section(path) }
+  sections = []
+  total_bytes = 0
+
+  paths.each do |path|
+    section = untracked_file_section(path)
+    section_bytes = section.bytesize
+    if total_bytes + section_bytes > MAX_UNTRACKED_BUNDLE_BYTES
+      sections << "### #{path}\n\nSkipped: untracked bundle exceeded #{MAX_UNTRACKED_BUNDLE_BYTES} bytes.\n"
+      break
+    end
+
+    total_bytes += section_bytes
+    sections << section
+  end
 
   <<~TEXT
     ## Untracked Files
@@ -305,6 +319,7 @@ def builder_system_prompt
 
     Source of truth:
     - The supplied PRD and issue acceptance criteria define the scope.
+    - If only a task intent is supplied, treat that intent as the narrow scope and state any assumptions in the handoff.
     - The selected issue is a vertical slice; keep it demoable and verifiable on its own.
     - Use the project vocabulary from CONTEXT.md when present.
     - Respect ADRs. If you need to contradict one, stop and report the conflict.
