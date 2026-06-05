@@ -62,7 +62,7 @@ Run a skeptical UI evaluator after the builder changes files:
 6. For subjective or high-stakes UI work, run evaluator mode as a separate pass.
 7. Use Codex for final technical integration, test review, and follow-up issue creation.
 
-Observation policy: after launching Claude visibly, Codex should let the user be the live observer and should not continuously poll the pane. When Codex needs completion, poll the printed done marker cheaply and read the handoff file once it exists. Inspect the pane only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps. Avoid repeated `dump-screen --full` polling; use full transcript dumps only as diagnostics, preferably written to a temp file.
+Observation policy: after launching Claude visibly, Codex should let the user be the live observer and should not continuously poll the pane. When Codex needs completion, do the first marker check after 2-3 minutes, then poll the printed done marker cheaply and read the handoff file once it exists. Inspect the pane only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps. Avoid repeated `dump-screen --full` polling; use full transcript dumps only as diagnostics, preferably written to a temp file.
 
 ## Matt Pocock Skill Fit
 
@@ -75,7 +75,7 @@ Observation policy: after launching Claude visibly, Codex should let the user be
 ## Useful Options
 
 ```sh
-CLAUDE_UI_EFFORT=high scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=xhigh scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 CLAUDE_UI_MODEL=claude-sonnet-4-6 scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issues/01.md
 scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"

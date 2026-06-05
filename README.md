@@ -75,7 +75,7 @@ Run a separate evaluator after implementation:
 Use a different effort or model:
 
 ```sh
-CLAUDE_UI_EFFORT=high /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=xhigh /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 ```
 
@@ -91,7 +91,7 @@ zellij --session feature-ui action send-keys --pane-id terminal_0 Esc
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, poll the printed done marker cheaply and read the handoff file once it exists. Inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
+Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, do the first done-marker check after 2-3 minutes, read the handoff file once the marker exists, and inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
 
 The helper writes the assembled prompt bundle, system prompt, handoff file, and done marker under `/tmp/claude-ui-builder/...` so the exact task and final handoff remain inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 

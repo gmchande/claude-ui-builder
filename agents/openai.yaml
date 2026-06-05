@@ -4,4 +4,4 @@ interface:
   default_prompt: "Use $claude-ui-builder to launch a visible Claude UI builder or evaluator pass for the selected frontend slice."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
