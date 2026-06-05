@@ -75,7 +75,7 @@ Observation policy: after launching Claude visibly, Codex should let the user be
 ## Useful Options
 
 ```sh
-CLAUDE_UI_EFFORT=xhigh scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=high scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 CLAUDE_UI_MODEL=claude-sonnet-4-6 scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issues/01.md
 scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"

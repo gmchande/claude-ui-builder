@@ -11,7 +11,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Bundles local skill configuration from `docs/agents/`.
 - Bundles `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs when present.
 - Includes git status, current tracked diff, and untracked text files.
-- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, high effort, and `bypassPermissions` by default.
+- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, xhigh effort, and `bypassPermissions` by default.
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
@@ -75,7 +75,7 @@ Run a separate evaluator after implementation:
 Use a different effort or model:
 
 ```sh
-CLAUDE_UI_EFFORT=xhigh /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=high /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 ```
 
