@@ -5,51 +5,24 @@ description: Delegate frontend UI/DX implementation or UI review to Claude Code 
 
 # Claude UI Builder
 
-Use this skill when Codex should act as the technical lead and ask Claude Code to implement or evaluate a frontend/UI slice. Use it for substantial UI/DX work where a delegated model pass is worth the visible Zellij session overhead; for tiny copy, CSS, or component tweaks, Codex should usually make the change directly. It is designed to fit after the Matt Pocock skill flow: `/grill-with-docs` clarifies language and decisions, `/to-prd` creates the PRD, `/to-issues` creates vertical-slice issues, then this skill gives Claude one constrained UI/DX slice to build or review.
+Use this skill when Codex should act as technical lead and ask Claude Code to implement or evaluate a frontend/UI slice. Use it for substantial UI/DX work where a delegated model pass is worth the visible Zellij session overhead; for tiny copy, CSS, or component tweaks, Codex should usually make the change directly. It is designed to fit after the Matt Pocock skill flow: `/grill-with-docs` clarifies language and decisions, `/to-prd` creates the PRD, `/to-issues` creates vertical-slice issues, then this skill gives Claude one constrained UI/DX slice to build or review.
+
+Claude is another agent, not the authority. It may miss main-session context, overbuild, or make unsupported claims. Codex remains responsible for scope, integration, verification, and final judgment.
 
 The helper always launches Claude Code in a new, one-off visible Zellij session with `--permission-mode bypassPermissions` and opens a Ghostty tab attached to that session before sending the task. If the requested session name already exists, the helper exits instead of reusing it; remove old handles with `zellij delete-session <name>` or `zellij kill-session <name>` if still active. If Claude shows its bypass-permissions startup responsibility screen, the helper selects `Yes, I accept` before sending the task. If the Claude prompt never becomes visibly ready, the helper exits instead of pasting into an unknown screen. There is no hidden batch mode, prompt-copy mode, approval-gated mode, or fallback transport. This is intentional: the user can attach, watch stdout, interrupt, and correct Claude directly while Codex remains responsible for planning, integration, and final review.
 
 Requirements: Ruby, Git, Claude Code CLI on `PATH`, Zellij 0.44+ on `PATH`, Ghostty.app installed and registered with macOS, and `ZELLIJ_SOCKET_DIR` set in shell startup to a short stable path such as `/tmp/zellij`. Builder mode grants edit tools and shell access without per-command permission prompts; use it only in trusted repos, preferably on a branch or isolated worktree. Evaluator mode is read-only-ish, but `Bash` is still shell access.
 
-## Quick Start
+## Commands
 
 From the repo root:
 
 ```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
-  --prd .scratch/feature-slug/PRD.md \
-  --issue .scratch/feature-slug/issues/01-ui-slice.md \
-  --intent "Implement the selected UI slice" \
-  --zellij-session feature-ui \
-  --chrome
-```
-
-For repos whose Matt Pocock skills publish to GitHub Issues instead of local markdown, pass issue numbers or URLs:
-
-```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
-  --gh-prd 123 \
-  --gh-issue 124 \
-  --intent "Implement the selected UI slice" \
-  --chrome
-```
-
-Inspect the prompt bundle without calling Claude:
-
-```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
-  --issue .scratch/feature-slug/issues/01-ui-slice.md \
-  --dry-run
-```
-
-Run a skeptical UI evaluator after the builder changes files:
-
-```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
-  --mode evaluator \
-  --prd .scratch/feature-slug/PRD.md \
-  --issue .scratch/feature-slug/issues/01-ui-slice.md \
-  --chrome
+SKILL=/Users/gaurav/.agents/skills/claude-ui-builder
+$SKILL/scripts/claude_ui_builder.rb --prd .scratch/x/PRD.md --issue .scratch/x/issues/01-ui.md --intent "Implement the selected UI slice" --zellij-session feature-ui --chrome
+$SKILL/scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue" --chrome
+$SKILL/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01-ui.md --dry-run
+$SKILL/scripts/claude_ui_builder.rb --mode evaluator --prd .scratch/x/PRD.md --issue .scratch/x/issues/01-ui.md --chrome
 ```
 
 ## Workflow
@@ -58,11 +31,39 @@ Run a skeptical UI evaluator after the builder changes files:
 2. Prefer passing a PRD or issue path. The selected issue is the scope boundary; Claude should not expand the feature beyond that vertical slice.
 3. Run builder mode with a fresh Zellij session name. The helper prints the `zellij attach <session>` command and sends the task into that visible Claude pane.
 4. Let Claude run in Zellij. The user is the live observer and can interrupt or correct it in the terminal. Codex should not continuously poll the pane.
-5. Read Claude's handoff or terminal summary. Verify its claims against the real diff, commands, and screenshots.
+5. Read Claude's handoff or terminal summary. Verify its claims against the real diff, commands, screenshots, and browser state.
 6. For subjective or high-stakes UI work, run evaluator mode as a separate pass.
-7. Use Codex for final technical integration, test review, and follow-up issue creation.
+7. Send the post-Claude checkpoint below before further Codex edits, staging, commits, or acceptance.
+8. After approval, use Codex for final technical integration, test review, and follow-up issue creation.
 
 Observation policy: after launching Claude visibly, Codex should let the user be the live observer and should not continuously poll the pane. When Codex needs completion, do the first marker check after 2-3 minutes, then poll the printed done marker cheaply and read the handoff file once it exists. Inspect the pane only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps. Avoid repeated `dump-screen --full` polling; use full transcript dumps only as diagnostics, preferably written to a temp file.
+
+## Post-Claude Checkpoint
+
+Builder mode intentionally allows Claude to edit files. This gate applies after Claude returns: Codex must not make additional edits, stage, commit, push, or declare the work accepted until it verifies the output and summarizes it for Gaurav.
+
+Use this shape:
+
+```md
+Claude did / found:
+- [short factual summary]
+
+I verified:
+- [diff, commands, screenshots, browser checks, or gaps]
+
+I agree with:
+- [what is solid and why]
+
+I reject or want to adjust:
+- [overbuild, unsupported claim, design mismatch, bug, or unnecessary work]
+
+Integration plan:
+- [smallest Codex follow-up edits, checks, or no-op]
+
+Waiting for your go-ahead before I edit or commit.
+```
+
+For evaluator mode, treat findings like review findings: verify each one, classify accepted/rejected/deferred, and wait for approval before implementing fixes.
 
 ## Matt Pocock Skill Fit
 
@@ -75,10 +76,8 @@ Observation policy: after launching Claude visibly, Codex should let the user be
 ## Useful Options
 
 ```sh
-CLAUDE_UI_EFFORT=high scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
-CLAUDE_UI_MODEL=claude-sonnet-4-6 scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
-scripts/claude_ui_builder.rb --zellij-session feature-ui --issue .scratch/x/issues/01.md
-scripts/claude_ui_builder.rb --gh-prd 123 --gh-issue 124 --intent "Implement the issue"
+CLAUDE_UI_EFFORT=high $SKILL/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_MODEL=claude-sonnet-4-6 $SKILL/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 ```
 
 The helper writes the assembled prompt bundle, system prompt, handoff path, and done marker under `/tmp/claude-ui-builder/...`, starts Claude in a pane inside the one-off Zellij session, opens Ghostty attached to the session, and bracket-pastes the task. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace. It does not parse a final handoff automatically; Codex should read the handoff file after the done marker appears and verify the actual diff before accepting it.
