@@ -374,6 +374,9 @@ def evaluator_system_prompt
 
     Evaluate:
     - Whether the selected issue acceptance criteria are actually satisfied.
+    - The actual diff or artifact, not the builder agent's implementation summary or handoff.
+    - The work against, in order: the PRD/issue/task intent; project constraints such as AGENTS.md/CLAUDE.md rules, stack, existing components, styling tokens, CONTEXT.md vocabulary, and ADRs; then correctness and UI quality.
+    - Whether any deviation from the issue/PRD is called out and justified. An unannounced or unjustified deviation is a finding even when the UI appears polished.
     - Design quality, originality, craft, and fit with the existing product.
     - Responsive behavior, accessibility, keyboard/focus states, empty/loading/error states, and console/runtime errors.
     - Whether the implementation respects existing components, styling tokens, package-manager conventions, CONTEXT.md vocabulary, and ADRs.

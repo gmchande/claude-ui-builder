@@ -1,11 +1,18 @@
 ---
 name: claude-ui-builder
-description: Delegate frontend UI/DX implementation or UI review to Claude Code from Codex, using PRDs, vertical-slice issues, domain docs, and browser verification. Use when design/frontend work should be handed to Claude while Codex stays responsible for planning, integration, and technical review.
+description: Claude Code UI delegation for substantial frontend UI/DX implementation or evaluation. Launches a visible Zellij builder/evaluator pass while Codex stays responsible for scope, integration, verification, and final judgment.
 ---
 
 # Claude UI Builder
 
-Use this skill when Codex should act as technical lead and ask Claude Code to implement or evaluate a frontend/UI slice. Use it for substantial UI/DX work where a delegated model pass is worth the visible Zellij session overhead; for tiny copy, CSS, or component tweaks, Codex should usually make the change directly. It is designed to fit after the Matt Pocock skill flow: `/grill-with-docs` clarifies language and decisions, `/to-prd` creates the PRD, `/to-issues` creates vertical-slice issues, then this skill gives Claude one constrained UI/DX slice to build or review.
+Codex acts as technical lead and asks Claude Code to implement or evaluate a
+frontend/UI slice. Use it for substantial UI/DX work where a delegated model
+pass is worth the visible Zellij session overhead; for tiny copy, CSS, or
+component tweaks, Codex should usually make the change directly. It is designed
+to fit after the Matt Pocock skill flow:
+`/grill-with-docs` clarifies language and decisions, `/to-prd` creates the PRD,
+`/to-issues` creates vertical-slice issues, then this skill gives Claude one
+constrained UI/DX slice to build or review.
 
 Claude is another agent, not the authority. It may miss main-session context, overbuild, or make unsupported claims. Codex remains responsible for scope, integration, verification, and final judgment.
 
@@ -40,7 +47,15 @@ Observation policy: after launching Claude visibly, Codex should let the user be
 
 ## Post-Claude Checkpoint
 
-Builder mode intentionally allows Claude to edit files. This gate applies after Claude returns: Codex must not make additional edits, stage, commit, push, or declare the work accepted until it verifies the output and summarizes it for Gaurav.
+Builder mode intentionally allows Claude to edit files. This gate applies after Claude returns: Codex must not make additional edits, stage, commit, push, or declare the work accepted until it verifies the actual output and summarizes it for the user.
+
+Review the actual diff, commands, screenshots, and browser state, not Claude's handoff as a source of truth. Judge the work against, in order:
+
+1. The PRD, issue, or task intent: whether Claude stayed inside the selected vertical slice and acceptance criteria.
+2. Project constraints: AGENTS.md/CLAUDE.md rules, stack, existing components, styling tokens, package-manager conventions, CONTEXT.md vocabulary, and ADRs.
+3. Correctness and UI quality: broken flows, runtime errors, accessibility, responsive behavior, visual fit, unsupported claims, overbuild, and unnecessary repo changes.
+
+An unannounced or unjustified deviation from the issue/PRD is a finding even when the UI appears polished.
 
 Use this shape:
 
