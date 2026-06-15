@@ -11,7 +11,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Bundles local skill configuration from `docs/agents/`.
 - Bundles `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs when present.
 - Includes git status, current tracked diff, and untracked text files.
-- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, xhigh effort, and `bypassPermissions` by default.
+- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, xhigh effort, and `bypassPermissions` by default, with streamed output formatted for the terminal.
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
@@ -81,23 +81,22 @@ CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder
 
 ## Runtime Behavior
 
-The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root, accepts Claude's bypass-permissions startup responsibility screen if it appears, waits for the Claude prompt, opens a Ghostty tab attached to the session, bracket-pastes the assembled task, presses Enter, and prints commands like:
+The helper creates a new named Zellij session, starts a `Claude UI Builder` pane in the repo root with `claude -p < prompt_bundle`, streams Claude's JSON events through a readable terminal formatter, opens a Ghostty tab attached to the session, and prints commands like:
 
 ```sh
 zellij attach feature-ui
 zellij --session feature-ui action dump-screen --pane-id terminal_0
 zellij --session feature-ui action dump-screen --pane-id terminal_0 --full --path /tmp/claude-ui-builder-feature-ui.screen.txt
-zellij --session feature-ui action send-keys --pane-id terminal_0 Esc
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session, interrupt, and correct Claude directly; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, do the first done-marker check after 2-3 minutes, read the handoff file once the marker exists, and inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
+Codex should let Claude run visibly. The user can attach to the Zellij session and interrupt the run; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, do the first done-marker check after 2-3 minutes, read the handoff file once the marker exists, and inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
 
 The helper writes the assembled prompt bundle, system prompt, handoff file, and done marker under `/tmp/claude-ui-builder/...` so the exact task and final handoff remain inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 
 If the requested Zellij session name already exists, the helper exits. Session names are one-off handles for a single Claude run; use a fresh name for each run, or remove the old handle with `zellij delete-session <name>` or `zellij kill-session <name>` if it is still active.
 
-If the Claude prompt never becomes visibly ready, the helper exits with an inspect command instead of pasting the task into an unknown screen.
+Because the task is supplied through the prompt bundle on stdin, the helper does not wait for an interactive Claude prompt or paste into the terminal input buffer. Live visibility comes from the formatted stream rather than the Claude TUI.
 
 ## Matt Pocock Skill Fit
 

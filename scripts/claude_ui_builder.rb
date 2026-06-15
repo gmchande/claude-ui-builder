@@ -426,7 +426,8 @@ def zellij_session_name(options)
   "cui-#{Time.now.utc.strftime("%H%M%S")}"
 end
 
-def claude_interactive_shell_cmd(system_prompt_path, options, tools)
+def claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools)
+  stream_printer_path = File.expand_path("claude_stream_printer.rb", __dir__)
   cmd = [
     "claude",
     "--model",
@@ -443,15 +444,29 @@ def claude_interactive_shell_cmd(system_prompt_path, options, tools)
 
   cmd << "--chrome" if options[:chrome]
   cmd.concat(["--append-system-prompt-file", system_prompt_path])
-  cmd.shelljoin
+  cmd.concat([
+    "-p",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-partial-messages"
+  ])
+
+  [
+    "set -o pipefail",
+    "#{cmd.shelljoin} < #{prompt_path.shellescape} 2>&1 | ruby #{stream_printer_path.shellescape}",
+    "rc=$?",
+    "echo",
+    "echo Claude UI builder exited with status $rc",
+    "exec ${SHELL:-/bin/zsh} -l"
+  ].join("; ")
 end
 
 def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
   session = zellij_session_name(options)
-  prompt_text = payload
-  prompt_path = write_prompt_bundle(prompt_text, repo_root, options)
+  prompt_path = write_prompt_bundle(payload, repo_root, options)
   system_prompt_path = write_system_prompt(system_prompt, prompt_path)
-  cmd = claude_interactive_shell_cmd(system_prompt_path, options, tools)
+  cmd = claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools)
 
   ClaudeVisibleSession.run_session(
     skill_name: "claude-ui-builder",
@@ -459,11 +474,10 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
     repo_root: repo_root,
     pane_name: "Claude UI Builder",
     claude_shell_command: cmd,
-    prompt_text: prompt_text,
     prompt_path: prompt_path,
     system_prompt_path: system_prompt_path,
     prompt_label: "task",
-    sent_message: "Claude prompt sent to Zellij session"
+    sent_message: "Claude UI builder started in Zellij session"
   )
 end
 
