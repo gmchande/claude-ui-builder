@@ -426,7 +426,7 @@ def zellij_session_name(options)
   "cui-#{Time.now.utc.strftime("%H%M%S")}"
 end
 
-def claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools)
+def claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools, done_marker_path)
   stream_printer_path = File.expand_path("claude_stream_printer.rb", __dir__)
   cmd = [
     "claude",
@@ -456,6 +456,7 @@ def claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools)
     "set -o pipefail",
     "#{cmd.shelljoin} < #{prompt_path.shellescape} 2>&1 | ruby #{stream_printer_path.shellescape}",
     "rc=$?",
+    "echo $rc > #{done_marker_path.shellescape}",
     "echo",
     "echo Claude UI builder exited with status $rc",
     "exec ${SHELL:-/bin/zsh} -l"
@@ -466,7 +467,8 @@ def run_zellij_runner(system_prompt, payload, repo_root, options, tools)
   session = zellij_session_name(options)
   prompt_path = write_prompt_bundle(payload, repo_root, options)
   system_prompt_path = write_system_prompt(system_prompt, prompt_path)
-  cmd = claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools)
+  done_marker_path = ClaudeVisibleSession.default_done_marker_path(prompt_path)
+  cmd = claude_print_shell_cmd(system_prompt_path, prompt_path, options, tools, done_marker_path)
 
   ClaudeVisibleSession.run_session(
     skill_name: "claude-ui-builder",
