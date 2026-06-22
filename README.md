@@ -34,7 +34,8 @@ For browser-based UI verification, Claude Code Chrome integration must be instal
 From a repo:
 
 ```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
+SKILL=/path/to/claude-ui-builder
+$SKILL/scripts/claude_ui_builder.rb \
   --prd .scratch/feature-slug/PRD.md \
   --issue .scratch/feature-slug/issues/01-ui-slice.md \
   --intent "Implement the selected UI slice" \
@@ -45,7 +46,7 @@ From a repo:
 Those `.scratch/...` paths are for repos configured with the local markdown issue tracker. If `/to-prd` and `/to-issues` published to GitHub Issues, use issue numbers or URLs instead:
 
 ```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
+$SKILL/scripts/claude_ui_builder.rb \
   --gh-prd 123 \
   --gh-issue 124 \
   --intent "Implement the selected UI slice" \
@@ -56,7 +57,7 @@ Those `.scratch/...` paths are for repos configured with the local markdown issu
 Dry-run the prompt without launching Claude:
 
 ```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
+$SKILL/scripts/claude_ui_builder.rb \
   --issue .scratch/feature-slug/issues/01-ui-slice.md \
   --dry-run
 ```
@@ -64,7 +65,7 @@ Dry-run the prompt without launching Claude:
 Run a separate evaluator after implementation:
 
 ```sh
-/Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb \
+$SKILL/scripts/claude_ui_builder.rb \
   --mode evaluator \
   --prd .scratch/feature-slug/PRD.md \
   --issue .scratch/feature-slug/issues/01-ui-slice.md \
@@ -75,9 +76,11 @@ Run a separate evaluator after implementation:
 Use a different effort or model:
 
 ```sh
-CLAUDE_UI_EFFORT=high /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
-CLAUDE_UI_MODEL=claude-sonnet-4-6 /Users/gaurav/.agents/skills/claude-ui-builder/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_EFFORT=high $SKILL/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
+CLAUDE_UI_MODEL=claude-sonnet-4-6 $SKILL/scripts/claude_ui_builder.rb --issue .scratch/x/issues/01.md
 ```
+
+Replace `/path/to/claude-ui-builder` with the loaded skill directory.
 
 ## Runtime Behavior
 
@@ -90,7 +93,7 @@ zellij --session feature-ui action dump-screen --pane-id terminal_0 --full --pat
 zellij --session feature-ui action send-keys --pane-id terminal_0 "Ctrl c"
 ```
 
-Codex should let Claude run visibly. The user can attach to the Zellij session and interrupt the run; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, do the first done-marker check after 2-3 minutes, read the handoff file once the marker exists, and inspect only on explicit user request, a bounded checkpoint, or to verify a concrete finding. Prefer `zellij list-sessions --short` for liveness and viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
+Codex should let Claude run visibly. The user can attach to the Zellij session and interrupt the run; they should not need to press Enter for every command Claude wants to run. Codex should not continuously poll the pane. When completion matters, do the first done-marker check after 2-3 minutes, then poll the marker/handoff paths every 60-90 seconds. If the marker is absent, keep polling until about 15 minutes have passed. Do not rerun solely because `dump-screen`, `list-panes`, or `list-sessions` reports no active session; check the done marker and handoff paths directly first. If the session is repeatedly confirmed gone/exited and the marker remains absent after a brief direct recheck, treat the run as failed or ambiguous rather than polling forever. If the marker is non-zero but the handoff exists, inspect the handoff before discarding the run. Prefer viewport-only `dump-screen` with small output caps; reserve `dump-screen --full` for diagnostics, preferably with `--path`.
 
 The helper writes the assembled prompt bundle, system prompt, handoff file, and done marker under `/tmp/claude-ui-builder/...` so the exact task and final handoff remain inspectable. Zellij must use a short, stable socket namespace such as `/tmp/zellij` in shell startup so plain commands like `zellij attach feature-ui` work from new terminal tabs. If `ZELLIJ_SOCKET_DIR` is missing, the helper exits instead of creating a hidden alternate namespace.
 
