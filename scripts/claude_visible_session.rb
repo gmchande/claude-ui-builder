@@ -30,7 +30,8 @@ module ClaudeVisibleSession
 
     handoff_path = default_handoff_path(prompt_path)
     done_marker_path = default_done_marker_path(prompt_path)
-    FileUtils.rm_f([handoff_path, done_marker_path])
+    session_id_path = default_session_id_path(prompt_path)
+    FileUtils.rm_f([handoff_path, done_marker_path, session_id_path])
     File.open(system_prompt_path, "a") do |file|
       file.write("\n")
       file.write(completion_handoff_instructions(handoff_path))
@@ -86,6 +87,7 @@ module ClaudeVisibleSession
     puts "System prompt: #{system_prompt_path}"
     puts "Handoff file: #{handoff_path}"
     puts "Done marker: #{done_marker_path}"
+    puts "Claude session id: #{session_id_path} (written when the run starts)"
     puts
     puts "Watch:"
     puts zellij_shell_command("attach", session)
@@ -109,7 +111,10 @@ module ClaudeVisibleSession
     puts "Interrupt:"
     puts zellij_shell_command("--session", session, "action", "send-keys", "--pane-id", pane_id, "Ctrl c")
     puts
-    puts "Cleanup after triage:"
+    puts "Follow up with the same Claude session (run from the repo root):"
+    puts "cd #{repo_root.shellescape} && claude --resume \"$(cat #{session_id_path.shellescape})\""
+    puts
+    puts "Cleanup (only when the user says they are done with this run; leave the session open for follow-ups otherwise):"
     puts "#{zellij_shell_command("kill-session", session)} # if still attached"
     puts zellij_shell_command("delete-session", "--force", session)
   end
@@ -193,6 +198,12 @@ module ClaudeVisibleSession
 
   def delete_zellij_session(session)
     zellij("delete-session", session, "--force", allow_failure: true)
+  end
+
+  def default_session_id_path(prompt_path)
+    return prompt_path.sub(/\.md\z/, "-session-id.txt") if prompt_path.end_with?(".md")
+
+    "#{prompt_path}-session-id.txt"
   end
 
   def completion_handoff_instructions(handoff_path)

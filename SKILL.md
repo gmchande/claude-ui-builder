@@ -76,7 +76,7 @@ After Claude returns, do not make additional Codex edits, stage, commit, push,
 or declare the work accepted until you verify and summarize the actual output.
 Judge the work against the PRD/issue/intent, project constraints, correctness,
 and UI quality.
-After verification and integration are done, delete the Zellij session; skipping this accumulates dead sessions.
+Leave the Zellij session open after verification; the user often has follow-up prompts, and the printed claude --resume command reaches the same Claude session from the repo root. Delete the session only when the user says they are done.
 
 Use this shape:
 

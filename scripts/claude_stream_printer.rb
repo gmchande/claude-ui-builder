@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require "fileutils"
 require "json"
 
 MAX_TOOL_OUTPUT_CHARS = 4_000
@@ -8,6 +9,7 @@ MAX_TOOL_OUTPUT_CHARS = 4_000
 $stdout.sync = true
 
 handoff_path = ARGV[0]
+session_id_path = ARGV[1]
 
 def summarize_tool_input(input)
   if input.is_a?(Hash)
@@ -69,6 +71,16 @@ def print_tool_result(result)
   printed
 end
 
+def write_session_id(path, session_id)
+  return unless path && session_id.is_a?(String) && !session_id.empty?
+  return if File.exist?(path) && File.size(path).positive?
+
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, session_id)
+rescue SystemCallError => e
+  warn "[claude] could not write session id: #{e.message}"
+end
+
 def write_handoff_if_empty(path, result)
   return unless path && result.is_a?(String) && !result.empty?
   return if File.exist?(path) && File.size(path).positive?
@@ -83,6 +95,7 @@ STDIN.each_line do |line|
   when "system"
     case event["subtype"]
     when "init"
+      write_session_id(session_id_path, event["session_id"])
       puts "[claude] started #{event["model"] || "session"} in #{event["cwd"]}"
     when "status"
       puts "[claude] #{event["status"]}..."
@@ -117,6 +130,7 @@ STDIN.each_line do |line|
       end
     end
   when "result"
+    write_session_id(session_id_path, event["session_id"])
     write_handoff_if_empty(handoff_path, event["result"])
     puts
     puts "[claude] finished: #{event["subtype"] || event["status"] || "done"}"
