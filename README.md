@@ -11,7 +11,7 @@ The workflow is deliberately singular: the helper always launches Claude in a ne
 - Bundles local skill configuration from `docs/agents/`.
 - Bundles `CONTEXT.md`, `CONTEXT-MAP.md`, and ADRs when present.
 - Includes git status, current tracked diff, and untracked text files.
-- Starts Claude Code in a visible Zellij pane with `claude-opus-4-8`, max effort, and `bypassPermissions` by default, with streamed output formatted for the terminal.
+- Starts Claude Code in a visible Zellij pane with `claude-fable-5`, high effort, and `bypassPermissions` by default, with streamed output formatted for the terminal.
 - Supports builder mode with edit tools.
 - Supports evaluator mode without edit tools.
 - Optionally enables Claude Code Chrome integration with `--chrome`.
