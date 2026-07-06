@@ -7,6 +7,8 @@ MAX_TOOL_OUTPUT_CHARS = 4_000
 
 $stdout.sync = true
 
+handoff_path = ARGV[0]
+
 def summarize_tool_input(input)
   if input.is_a?(Hash)
     command = input["command"] || input[:command]
@@ -67,6 +69,13 @@ def print_tool_result(result)
   printed
 end
 
+def write_handoff_if_empty(path, result)
+  return unless path && result.is_a?(String) && !result.empty?
+  return if File.exist?(path) && File.size(path).positive?
+
+  File.write(path, result)
+end
+
 STDIN.each_line do |line|
   event = JSON.parse(line)
 
@@ -108,6 +117,7 @@ STDIN.each_line do |line|
       end
     end
   when "result"
+    write_handoff_if_empty(handoff_path, event["result"])
     puts
     puts "[claude] finished: #{event["subtype"] || event["status"] || "done"}"
   else

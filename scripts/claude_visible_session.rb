@@ -108,6 +108,10 @@ module ClaudeVisibleSession
     puts
     puts "Interrupt:"
     puts zellij_shell_command("--session", session, "action", "send-keys", "--pane-id", pane_id, "Ctrl c")
+    puts
+    puts "Cleanup after triage:"
+    puts "#{zellij_shell_command("kill-session", session)} # if still attached"
+    puts zellij_shell_command("delete-session", "--force", session)
   end
 
   def ensure_required_command!(name, skill_name)
